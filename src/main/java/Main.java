@@ -1,17 +1,24 @@
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class Main {
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, ExecutionException {
         String[] texts = new String[25];
         for (int i = 0; i < texts.length; i++) {
             texts[i] = generateText("aab", 30_000);
         }
 
         long startTs = System.currentTimeMillis(); // start time
-        List<Thread> threads = new ArrayList<>();
+        ExecutorService threadPool = Executors.newFixedThreadPool(4);
+        List<Future<Integer>> futures = new ArrayList<>();
         for (String text : texts) {
-            threads.add(new Thread(() -> {
+            futures.add(threadPool.submit(() -> {
                 int maxSize = 0;
                 for (int i = 0; i < text.length(); i++) {
                     for (int j = 0; j < text.length(); j++) {
@@ -31,16 +38,19 @@ public class Main {
                     }
                 }
                 System.out.println(text.substring(0, 100) + " -> " + maxSize);
+                return maxSize;
             }));
         }
-        for (Thread thread : threads) {
-            thread.start();
+        int absolutelyMaxSize = 0;
+        for (Future<Integer> future : futures) {
+            int result = future.get();
+            if (result > absolutelyMaxSize) {
+                absolutelyMaxSize = result;
+            }
         }
-        for (Thread thread : threads) {
-            thread.join();
-        }
+        System.out.println("Максимальное значение интервала: " + absolutelyMaxSize);
         long endTs = System.currentTimeMillis(); // end time
-
+        threadPool.shutdown();
         System.out.println("Time: " + (endTs - startTs) + "ms");
     }
 
